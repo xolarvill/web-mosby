@@ -24,19 +24,21 @@
 
       <section id="warningList" class="warning-list" hidden></section>
 
-      <section id="summaryGrid" class="summary-grid" hidden></section>
-
-      <section class="content-grid">
-        <article class="panel-card">
+      <section class="palette-stack">
+        <article class="panel-card palette-card">
           <div class="section-heading">
             <h2>主配色</h2>
-            <p>按融合权重排序</p>
+            <p>按融合权重排序，优先展示当前页面最有代表性的 palette</p>
           </div>
           <div id="swatchList" class="swatch-list empty-state">
             还没有可展示的颜色结果。
           </div>
         </article>
+      </section>
 
+      <section id="summaryGrid" class="summary-grid" hidden></section>
+
+      <section class="content-grid">
         <article class="panel-card">
           <div class="section-heading">
             <h2>语义角色</h2>
@@ -44,20 +46,6 @@
           </div>
           <div id="roleList" class="role-list empty-state">
             识别完成后会在这里显示 primary、background、text、surface。
-          </div>
-        </article>
-      </section>
-
-      <section class="content-grid">
-        <article class="panel-card export-card">
-          <div class="section-heading">
-            <h2>导出</h2>
-            <p>下载成设计或开发可用格式</p>
-          </div>
-          <div class="export-actions">
-            <button data-export="json" class="secondary-button">Export JSON</button>
-            <button data-export="css" class="secondary-button">Export CSS Vars</button>
-            <button data-export="tailwind" class="secondary-button">Export Tailwind</button>
           </div>
         </article>
 
@@ -69,6 +57,20 @@
           <img id="previewImage" class="preview-image" alt="Page preview" hidden />
           <div id="previewEmpty" class="empty-state">
             点击 Analyze 后会显示当前视口截图。
+          </div>
+        </article>
+      </section>
+
+      <section class="footer-dock">
+        <article class="panel-card export-card">
+          <div class="export-heading">
+            <h2>导出</h2>
+            <p>下载成设计或开发可用的小格式文件</p>
+          </div>
+          <div class="export-actions">
+            <button data-export="json" class="secondary-button export-pill">JSON</button>
+            <button data-export="css" class="secondary-button export-pill">CSS Vars</button>
+            <button data-export="tailwind" class="secondary-button export-pill">Tailwind</button>
           </div>
         </article>
       </section>
