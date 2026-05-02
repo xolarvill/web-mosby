@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Color Pattern Reg",
+  "description": "Quickly identify a webpage's visible color palette and export it as reusable design tokens.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "scripting", "sidePanel", "storage"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Analyze page colors"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}
