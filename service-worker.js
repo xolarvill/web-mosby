@@ -1,3 +1,5 @@
+import { getTabAnalysisSupport } from "./lib/tab-support.js";
+
 const LATEST_CAPTURE_KEY = "latestCapture";
 const ANALYSIS_CONTEXT_KEY = "analysisContext";
 const ANALYSIS_TIMEOUT_MS = 3000;
@@ -16,6 +18,12 @@ chrome.action.onClicked.addListener(async (tab) => {
     return;
   }
 
+  try {
+    await chrome.sidePanel.open({ windowId: tab.windowId });
+  } catch (error) {
+    console.error("Unable to open side panel", error);
+  }
+
   await chrome.storage.local.set({
     [ANALYSIS_CONTEXT_KEY]: {
       tabId: tab.id,
@@ -27,12 +35,8 @@ chrome.action.onClicked.addListener(async (tab) => {
 
   try {
     await runAnalysisForTab(tab);
-  } finally {
-    try {
-      await chrome.sidePanel.open({ windowId: tab.windowId });
-    } catch (error) {
-      console.error("Unable to open side panel", error);
-    }
+  } catch (error) {
+    console.error("Page analysis failed", error);
   }
 });
 
@@ -90,10 +94,25 @@ async function runAnalysisForTab(tab) {
     throw new Error("Missing tab context for analysis.");
   }
 
+  const support = getTabAnalysisSupport(tab);
+
   const page = {
     title: tab.title || "",
     url: tab.url || ""
   };
+
+  if (!support.supported) {
+    await chrome.storage.local.set({
+      [LATEST_CAPTURE_KEY]: {
+        status: "error",
+        page,
+        error: support.reason,
+        message: "当前页面不支持分析，请切到普通网页后再试。"
+      }
+    });
+
+    throw new Error(support.reason);
+  }
 
   await chrome.storage.local.set({
     [LATEST_CAPTURE_KEY]: {
