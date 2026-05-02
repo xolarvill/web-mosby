@@ -33,10 +33,10 @@ chrome.action.onClicked.addListener(async (tab) => {
     }
   });
 
-  try {
-    await runAnalysisForTab(tab);
-  } catch (error) {
-    console.error("Page analysis failed", error);
+  const result = await runAnalysisForTab(tab);
+
+  if (!result.ok && !result.expected) {
+    console.error("Page analysis failed", result.error);
   }
 });
 
@@ -86,7 +86,11 @@ async function reanalyzeCurrentPage() {
   }
 
   const tab = await chrome.tabs.get(context.tabId);
-  await runAnalysisForTab(tab);
+  const result = await runAnalysisForTab(tab);
+
+  if (!result.ok && !result.expected) {
+    throw result.error;
+  }
 }
 
 async function runAnalysisForTab(tab) {
@@ -111,7 +115,11 @@ async function runAnalysisForTab(tab) {
       }
     });
 
-    throw new Error(support.reason);
+    return {
+      ok: false,
+      expected: true,
+      error: new Error(support.reason)
+    };
   }
 
   await chrome.storage.local.set({
@@ -147,6 +155,10 @@ async function runAnalysisForTab(tab) {
         warnings
       }
     });
+
+    return {
+      ok: true
+    };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unknown analysis error.";
@@ -160,7 +172,11 @@ async function runAnalysisForTab(tab) {
       }
     });
 
-    throw error;
+    return {
+      ok: false,
+      expected: false,
+      error: error instanceof Error ? error : new Error(message)
+    };
   }
 }
 
