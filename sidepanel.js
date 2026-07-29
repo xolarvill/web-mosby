@@ -1,9 +1,11 @@
 import { rgbToHex } from "./lib/color-utils.js";
-import { exportPaletteAsCssVariables, exportPaletteAsJson, exportPaletteAsTailwindPreset } from "./lib/exporters.js";
+import { exportPaletteAsAgentPrompt, exportPaletteAsCssVariables, exportPaletteAsJson, exportPaletteAsTailwindPreset } from "./lib/exporters.js";
 import { analyzePalette } from "./lib/palette-analysis.js";
+import { analyzeTypography } from "./lib/typography-analysis.js";
 
 const LATEST_CAPTURE_KEY = "latestCapture";
 const EXPORT_HANDLERS = {
+  agent: exportPaletteAsAgentPrompt,
   json: exportPaletteAsJson,
   css: exportPaletteAsCssVariables,
   tailwind: exportPaletteAsTailwindPreset
@@ -11,12 +13,15 @@ const EXPORT_HANDLERS = {
 
 const analyzeButton = document.getElementById("analyzeButton");
 const statusText = document.getElementById("statusText");
-const summaryGrid = document.getElementById("summaryGrid");
 const swatchList = document.getElementById("swatchList");
 const roleList = document.getElementById("roleList");
+const fontList = document.getElementById("fontList");
 const warningList = document.getElementById("warningList");
-const previewImage = document.getElementById("previewImage");
-const previewEmpty = document.getElementById("previewEmpty");
+const tabButtons = Array.from(document.querySelectorAll("[data-tab]"));
+const tabPanels = {
+  color: document.getElementById("colorPanel"),
+  font: document.getElementById("fontPanel")
+};
 const exportButtons = Array.from(document.querySelectorAll("[data-export]"));
 
 let latestRawCapture = null;
@@ -35,16 +40,36 @@ analyzeButton.addEventListener("click", async () => {
   }
 });
 
-for (const button of exportButtons) {
+for (const button of tabButtons) {
   button.addEventListener("click", () => {
+    setActiveTab(button.dataset.tab);
+  });
+}
+
+for (const button of exportButtons) {
+  button.addEventListener("click", async () => {
     if (!latestAnalysis) {
-      updateStatus("先完成一次页面分析，再导出结果。");
+      updateStatus("先完成一次页面分析，再复制结果。");
       return;
     }
 
     const handler = EXPORT_HANDLERS[button.dataset.export];
     const exported = handler(latestAnalysis);
-    downloadTextFile(exported);
+
+    try {
+      await navigator.clipboard.writeText(exported.content);
+      const label = button.querySelector("span")?.textContent || button.dataset.export;
+      button.dataset.copied = "true";
+      button.setAttribute("aria-label", `${label} 已复制`);
+      updateStatus(`${label} 已复制到剪贴板。`);
+
+      setTimeout(() => {
+        delete button.dataset.copied;
+        button.setAttribute("aria-label", `复制 ${label}`);
+      }, 1200);
+    } catch {
+      updateStatus("复制失败，请允许剪贴板访问后重试。");
+    }
   });
 }
 
@@ -59,12 +84,15 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 await bootstrap();
 
 async function bootstrap() {
-  const response = await chrome.runtime.sendMessage({ type: "get-analysis-context" });
+  setBusy(true);
+  updateStatus("正在采样当前页面...");
 
-  if (response?.latestCapture) {
-    await consumeCapture(response.latestCapture);
-  } else {
-    updateStatus("点击扩展图标，开始采样当前页面。");
+  const response = await chrome.runtime.sendMessage({ type: "reanalyze-current-page" });
+
+  if (!response?.ok) {
+    renderEmpty("无法读取当前页面，请切到普通网页后重试。");
+    updateStatus(response?.error || "当前页面分析失败。");
+    setBusy(false);
   }
 }
 
@@ -109,6 +137,8 @@ async function consumeCapture(rawCapture) {
   setBusy(true);
 
   try {
+    const domSamples = rawCapture.domSamples || [];
+    const fontSamples = rawCapture.fontSamples || [];
     const screenshotSamples = await extractScreenshotSamples(rawCapture.screenshotDataUrl);
 
     if (sequence !== renderSequence) {
@@ -117,17 +147,21 @@ async function consumeCapture(rawCapture) {
 
     latestAnalysis = analyzePalette({
       page: rawCapture.page,
-      domSamples: rawCapture.domSamples,
+      domSamples,
       screenshotSamples
+    });
+    latestAnalysis.typography = analyzeTypography({
+      fontSamples
     });
 
     latestAnalysis.meta = {
-      domSampleCount: rawCapture.domSamples.length,
-      screenshotSampleCount: screenshotSamples.length
+      domSampleCount: domSamples.length,
+      screenshotSampleCount: screenshotSamples.length,
+      fontSampleCount: fontSamples.length
     };
 
     renderAnalysis(latestAnalysis, rawCapture);
-    updateStatus("分析完成，可以导出 JSON / CSS / Tailwind。");
+    updateStatus("分析完成，点击格式复制结果。");
   } catch (error) {
     latestAnalysis = null;
     renderEmpty("截图像素解析失败，建议重新点击扩展图标再试一次。");
@@ -139,26 +173,6 @@ async function consumeCapture(rawCapture) {
 }
 
 function renderAnalysis(analysis, rawCapture) {
-  summaryGrid.hidden = false;
-  summaryGrid.innerHTML = "";
-
-  const summaryItems = [
-    ["Page", analysis.page?.title || "Untitled"],
-    ["Primary", analysis.roles.primary || "N/A"],
-    ["Background", analysis.roles.background || "N/A"],
-    ["Samples", `${analysis.meta.domSampleCount} DOM / ${analysis.meta.screenshotSampleCount} image`]
-  ];
-
-  for (const [label, value] of summaryItems) {
-    const card = document.createElement("article");
-    card.className = "summary-card";
-    card.innerHTML = `
-      <div class="summary-label">${escapeHtml(label)}</div>
-      <div class="summary-value">${escapeHtml(value)}</div>
-    `;
-    summaryGrid.appendChild(card);
-  }
-
   swatchList.classList.remove("empty-state");
   swatchList.innerHTML = "";
 
@@ -171,7 +185,6 @@ function renderAnalysis(analysis, rawCapture) {
         <div class="swatch-name">${escapeHtml(swatch.hex)}</div>
         <div class="swatch-detail">${escapeHtml(swatch.label)} · ${Math.round(swatch.usage * 100)}%</div>
       </div>
-      <div class="swatch-weight">${escapeHtml(String(swatch.weight))}</div>
     `;
     swatchList.appendChild(item);
   }
@@ -197,14 +210,29 @@ function renderAnalysis(analysis, rawCapture) {
   }
 
   renderWarnings(rawCapture.warnings || []);
+  renderTypography(analysis.typography);
+}
 
-  if (rawCapture.screenshotDataUrl) {
-    previewImage.hidden = false;
-    previewImage.src = rawCapture.screenshotDataUrl;
-    previewEmpty.hidden = true;
-  } else {
-    previewImage.hidden = true;
-    previewEmpty.hidden = false;
+function renderTypography(typography) {
+  const fonts = typography?.fonts || [];
+
+  fontList.classList.remove("empty-state");
+  fontList.innerHTML = "";
+
+  if (fonts.length === 0) {
+    fontList.classList.add("empty-state");
+    fontList.textContent = "未识别到可见文本字体。";
+    return;
+  }
+
+  for (const font of fonts.slice(0, 8)) {
+    const item = document.createElement("article");
+    item.className = "font-item";
+    item.innerHTML = `
+      <div class="font-name">${escapeHtml(font.family)}</div>
+      <div class="font-detail">${Math.round(font.usage * 100)}% · ${escapeHtml(font.averageSize)}px · ${escapeHtml(font.averageWeight)}</div>
+    `;
+    fontList.appendChild(item);
   }
 }
 
@@ -222,15 +250,12 @@ function renderWarnings(warnings) {
 }
 
 function renderEmpty(message) {
-  summaryGrid.hidden = true;
-  summaryGrid.innerHTML = "";
   swatchList.classList.add("empty-state");
   swatchList.textContent = message;
   roleList.classList.add("empty-state");
-  roleList.textContent = "识别完成后会在这里显示 primary、background、text、surface。";
-  previewImage.hidden = true;
-  previewImage.removeAttribute("src");
-  previewEmpty.hidden = false;
+  roleList.textContent = "分析后显示 primary、background、text、surface。";
+  fontList.classList.add("empty-state");
+  fontList.textContent = "分析后显示主要字体及占比。";
 }
 
 function updateStatus(message) {
@@ -242,6 +267,19 @@ function setBusy(isBusy) {
 
   for (const button of exportButtons) {
     button.disabled = isBusy || !latestAnalysis;
+  }
+}
+
+function setActiveTab(tabName) {
+  const activeTab = tabPanels[tabName] ? tabName : "color";
+
+  for (const button of tabButtons) {
+    const isActive = button.dataset.tab === activeTab;
+    button.setAttribute("aria-selected", String(isActive));
+  }
+
+  for (const [name, panel] of Object.entries(tabPanels)) {
+    panel.hidden = name !== activeTab;
   }
 }
 
@@ -320,19 +358,6 @@ function loadImage(src) {
     image.onerror = () => reject(new Error("Unable to decode captured viewport image."));
     image.src = src;
   });
-}
-
-function downloadTextFile({ filename, content, mimeType }) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-
-  setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 0);
 }
 
 function escapeHtml(value) {

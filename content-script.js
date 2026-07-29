@@ -5,6 +5,7 @@
     const viewportArea = Math.max(1, viewportWidth * viewportHeight);
     const elements = Array.from(document.querySelectorAll("body, body *")).slice(0, 1800);
     const samples = [];
+    const fontSamples = [];
 
     const pushSample = (color, role, weight, source) => {
       if (!isSupportedColor(color) || !Number.isFinite(weight) || weight <= 0) {
@@ -16,6 +17,20 @@
         role,
         weight: Number(weight.toFixed(2)),
         source
+      });
+    };
+
+    const pushFontSample = (element, style, weight) => {
+      if (!hasOwnText(element) || !style.fontFamily) {
+        return;
+      }
+
+      fontSamples.push({
+        family: firstFontFamily(style.fontFamily),
+        stack: style.fontFamily,
+        size: Number.parseFloat(style.fontSize || "0") || 0,
+        fontWeight: style.fontWeight,
+        weight: Number(weight.toFixed(2))
       });
     };
 
@@ -67,6 +82,8 @@
         pushSample(textColor, "text", textWeight, "text");
       }
 
+      pushFontSample(element, style, textWeight);
+
       if (
         isSupportedColor(borderColor) &&
         Number.parseFloat(style.borderTopWidth || "0") > 0
@@ -92,7 +109,8 @@
     chrome.runtime.sendMessage({
       type: "dom-samples",
       ok: true,
-      samples: samples.slice(0, 320)
+      samples: samples.slice(0, 320),
+      fontSamples: fontSamples.slice(0, 320)
     });
   } catch (error) {
     chrome.runtime.sendMessage({
@@ -139,5 +157,15 @@
   function extractCssColors(cssValue) {
     const matches = cssValue.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,6}/g);
     return matches || [];
+  }
+
+  function hasOwnText(element) {
+    return Array.from(element.childNodes).some(
+      (node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim()
+    );
+  }
+
+  function firstFontFamily(value) {
+    return (value.split(",")[0] || "").trim().replace(/^["']|["']$/g, "");
   }
 })();

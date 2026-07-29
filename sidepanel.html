@@ -8,72 +8,90 @@
   </head>
   <body>
     <main class="panel-shell">
-      <section class="hero-card">
-        <div class="hero-copy">
-          <p class="eyebrow">Visible Palette Intelligence</p>
-          <h1>Color Pattern Reg</h1>
-          <p class="hero-text">
-            用 DOM 语义和当前视口截图快速识别网页配色，并导出成可复用 token。
-          </p>
-        </div>
-        <div class="hero-actions">
-          <button id="analyzeButton" class="primary-button">Analyze 当前页面</button>
-          <p id="statusText" class="status-text">等待页面分析</p>
-        </div>
-      </section>
+      <div class="segmented-tabs" role="tablist" aria-label="分析类型">
+        <button class="segmented-tab" type="button" role="tab" aria-selected="true" aria-controls="colorPanel" data-tab="color">颜色</button>
+        <button class="segmented-tab" type="button" role="tab" aria-selected="false" aria-controls="fontPanel" data-tab="font">字体</button>
+      </div>
 
       <section id="warningList" class="warning-list" hidden></section>
 
-      <section class="palette-stack">
-        <article class="panel-card palette-card">
-          <div class="section-heading">
-            <h2>主配色</h2>
-            <p>按融合权重排序，优先展示当前页面最有代表性的 palette</p>
+      <section class="tab-content">
+        <div id="colorPanel" class="tab-panel" role="tabpanel">
+          <div class="workspace-grid">
+            <article class="panel-card palette-card">
+              <div class="section-heading">
+                <span class="card-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18h1.2a2 2 0 0 0 0-4H12a2 2 0 0 1 0-4h2a7 7 0 0 0-2-10Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="10" cy="6.5" r="1"/><circle cx="15" cy="7" r="1"/></svg>
+                </span>
+                <div>
+                  <h2>主配色</h2>
+                  <p>按页面融合权重排序</p>
+                </div>
+              </div>
+              <div id="swatchList" class="swatch-list empty-state">
+                还没有可展示的颜色结果。
+              </div>
+            </article>
+
+            <article class="panel-card role-card">
+              <div class="section-heading">
+                <span class="card-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 4v6M7 14v6"/></svg>
+                </span>
+                <div>
+                  <h2>语义角色</h2>
+                  <p>可映射设计 token</p>
+                </div>
+              </div>
+              <div id="roleList" class="role-list empty-state">
+                分析后显示 primary、background、text、surface。
+              </div>
+            </article>
           </div>
-          <div id="swatchList" class="swatch-list empty-state">
-            还没有可展示的颜色结果。
-          </div>
-        </article>
+        </div>
+
+        <div id="fontPanel" class="tab-panel" role="tabpanel" hidden>
+          <article class="panel-card typography-card">
+            <div class="section-heading">
+              <span class="card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 6h16M8 6v12M16 6v12M6 18h4M14 18h4"/></svg>
+              </span>
+              <div>
+                <h2>字体分布</h2>
+                <p>按可见文本权重排序</p>
+              </div>
+            </div>
+            <div id="fontList" class="font-list empty-state">
+              分析后显示主要字体及占比。
+            </div>
+          </article>
+        </div>
       </section>
 
-      <section id="summaryGrid" class="summary-grid" hidden></section>
-
-      <section class="content-grid">
-        <article class="panel-card">
-          <div class="section-heading">
-            <h2>语义角色</h2>
-            <p>适合直接映射设计 token</p>
-          </div>
-          <div id="roleList" class="role-list empty-state">
-            识别完成后会在这里显示 primary、background、text、surface。
-          </div>
-        </article>
-
-        <article class="panel-card preview-card">
-          <div class="section-heading">
-            <h2>截图预览</h2>
-            <p>当前视口像素权重来源</p>
-          </div>
-          <img id="previewImage" class="preview-image" alt="Page preview" hidden />
-          <div id="previewEmpty" class="empty-state">
-            点击 Analyze 后会显示当前视口截图。
-          </div>
-        </article>
-      </section>
-
-      <section class="footer-dock">
-        <article class="panel-card export-card">
-          <div class="export-heading">
-            <h2>导出</h2>
-            <p>下载成设计或开发可用的小格式文件</p>
-          </div>
-          <div class="export-actions">
-            <button data-export="json" class="secondary-button export-pill">JSON</button>
-            <button data-export="css" class="secondary-button export-pill">CSS Vars</button>
-            <button data-export="tailwind" class="secondary-button export-pill">Tailwind</button>
-          </div>
-        </article>
-      </section>
+      <footer class="export-bar">
+        <p id="statusText" class="visually-hidden" aria-live="polite">正在读取当前页面</p>
+        <div class="export-actions">
+          <button id="analyzeButton" class="primary-button icon-button" aria-label="重新分析当前页面" title="重新分析当前页面">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4"/></svg>
+          </button>
+          <button data-export="json" class="secondary-button export-pill" aria-label="复制 JSON">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 4H6a2 2 0 0 0-2 2v3a2 2 0 0 1-2 2 2 2 0 0 1 2 2v3a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v3a2 2 0 0 0 2 2 2 2 0 0 0-2 2v3a2 2 0 0 1-2 2h-2"/></svg>
+            <span>JSON</span>
+          </button>
+          <button data-export="css" class="secondary-button export-pill" aria-label="复制 CSS Vars">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9 3 7 21M17 3l-2 18M4 9h16M3 15h16"/></svg>
+            <span>CSS Vars</span>
+          </button>
+          <button data-export="tailwind" class="secondary-button export-pill" aria-label="复制 Tailwind">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 9c2.7-3.6 5.3-3.6 8 0 2.7 3.6 5.3 3.6 8 0M4 15c2.7-3.6 5.3-3.6 8 0 2.7 3.6 5.3 3.6 8 0"/></svg>
+            <span>Tailwind</span>
+          </button>
+          <button data-export="agent" class="secondary-button export-pill" aria-label="复制 Agent 配色描述">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4V5Z"/><path d="m14 8 .6 1.4L16 10l-1.4.6L14 12l-.6-1.4L12 10l1.4-.6L14 8Z"/></svg>
+            <span>Agent</span>
+          </button>
+        </div>
+      </footer>
     </main>
 
     <script type="module" src="sidepanel.js"></script>

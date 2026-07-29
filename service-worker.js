@@ -1,7 +1,6 @@
 import { getTabAnalysisSupport } from "./lib/tab-support.js";
 
 const LATEST_CAPTURE_KEY = "latestCapture";
-const ANALYSIS_CONTEXT_KEY = "analysisContext";
 const ANALYSIS_TIMEOUT_MS = 3000;
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -13,34 +12,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
 });
 
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab?.id || !tab.windowId) {
-    return;
-  }
-
-  try {
-    await chrome.sidePanel.open({ windowId: tab.windowId });
-  } catch (error) {
-    console.error("Unable to open side panel", error);
-  }
-
-  await chrome.storage.local.set({
-    [ANALYSIS_CONTEXT_KEY]: {
-      tabId: tab.id,
-      windowId: tab.windowId,
-      title: tab.title || "",
-      url: tab.url || ""
-    }
-  });
-
-  const result = await runAnalysisForTab(tab);
-
-  if (!result.ok && !result.expected) {
-    console.error("Page analysis failed", result.error);
-  }
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "reanalyze-current-page") {
     void reanalyzeCurrentPage()
       .then(() => sendResponse({ ok: true }))
@@ -54,38 +26,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message?.type === "get-analysis-context") {
-    void chrome.storage.local
-      .get([ANALYSIS_CONTEXT_KEY, LATEST_CAPTURE_KEY])
-      .then((result) =>
-        sendResponse({
-          ok: true,
-          context: result[ANALYSIS_CONTEXT_KEY] || null,
-          latestCapture: result[LATEST_CAPTURE_KEY] || null
-        })
-      )
-      .catch((error) =>
-        sendResponse({
-          ok: false,
-          error: error instanceof Error ? error.message : String(error)
-        })
-      );
-
-    return true;
-  }
-
   return false;
 });
 
 async function reanalyzeCurrentPage() {
-  const stored = await chrome.storage.local.get(ANALYSIS_CONTEXT_KEY);
-  const context = stored[ANALYSIS_CONTEXT_KEY];
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
 
-  if (!context?.tabId || !context.windowId) {
-    throw new Error("No active page context is available. Click the extension icon again.");
+  if (!tab?.id || !tab.windowId) {
+    throw new Error("No active page is available for analysis.");
   }
 
-  const tab = await chrome.tabs.get(context.tabId);
   const result = await runAnalysisForTab(tab);
 
   if (!result.ok && !result.expected) {
@@ -132,7 +82,7 @@ async function runAnalysisForTab(tab) {
   });
 
   try {
-    const domSamples = await collectDomSamples(tab.id);
+    const { domSamples, fontSamples } = await collectDomSamples(tab.id);
     const screenshotDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
       format: "jpeg",
       quality: 72
@@ -151,6 +101,7 @@ async function runAnalysisForTab(tab) {
         windowId: tab.windowId,
         startedAt: new Date().toISOString(),
         domSamples,
+        fontSamples,
         screenshotDataUrl,
         warnings
       }
@@ -212,7 +163,10 @@ function collectDomSamples(tabId) {
       }
 
       if (message.ok) {
-        resolveOnce(message.samples || []);
+        resolveOnce({
+          domSamples: message.samples || [],
+          fontSamples: message.fontSamples || []
+        });
       } else {
         rejectOnce(new Error(message.error || "Failed to collect DOM samples."));
       }

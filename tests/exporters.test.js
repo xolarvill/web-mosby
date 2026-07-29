@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  exportPaletteAsAgentPrompt,
   exportPaletteAsCssVariables,
   exportPaletteAsJson,
   exportPaletteAsTailwindPreset
@@ -23,6 +24,12 @@ const analysis = {
     background: "#ffffff",
     text: "#0f172a",
     surface: "#e2e8f0"
+  },
+  typography: {
+    fonts: [
+      { family: "Inter", usage: 0.72 },
+      { family: "Georgia", usage: 0.28 }
+    ]
   }
 };
 
@@ -50,4 +57,15 @@ test("exportPaletteAsTailwindPreset emits a colors object", () => {
   assert.match(exported.content, /primary: "#2563eb"/);
   assert.match(exported.content, /background: "#ffffff"/);
   assert.match(exported.content, /swatch4: "#e2e8f0"/);
+});
+
+test("exportPaletteAsAgentPrompt emits a conversational color brief", () => {
+  const exported = exportPaletteAsAgentPrompt(analysis);
+
+  assert.equal(exported.filename, "demo-landing-page.palette.prompt.txt");
+  assert.match(exported.content, /主色（主要按钮、链接和重点状态）：#2563eb/);
+  assert.match(exported.content, /背景色（页面画布）：#ffffff/);
+  assert.match(exported.content, /辅助色板：#ffffff（background，约 41%）/);
+  assert.match(exported.content, /字体分布：Inter（约 72%）、Georgia（约 28%）/);
+  assert.match(exported.content, /不要自行引入与该色板冲突的新颜色/);
 });
