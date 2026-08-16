@@ -7,7 +7,7 @@ chrome.runtime.onInstalled.addListener(async () => {
   await chrome.storage.local.set({
     [LATEST_CAPTURE_KEY]: {
       status: "idle",
-      message: "点击扩展图标，开始分析当前页面的可见配色。"
+      message: "点击扩展图标，开始分析当前页面的颜色与字体。"
     }
   });
 });
@@ -77,7 +77,7 @@ async function runAnalysisForTab(tab) {
       status: "analyzing",
       page,
       startedAt: new Date().toISOString(),
-      message: "正在分析当前视口的颜色样本..."
+      message: "正在分析当前视口的颜色与字体样本..."
     }
   });
 
@@ -173,7 +173,7 @@ function collectDomSamples(tabId) {
     };
 
     const timeoutId = setTimeout(() => {
-      rejectOnce(new Error("Timed out while waiting for page color samples."));
+      rejectOnce(new Error("Timed out while waiting for page design samples."));
     }, ANALYSIS_TIMEOUT_MS);
 
     chrome.runtime.onMessage.addListener(handleMessage);

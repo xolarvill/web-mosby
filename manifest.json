@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Color Pattern Reg",
-  "description": "Quickly identify a webpage's visible color palette and export it as reusable design tokens.",
+  "name": "Web Mosby",
+  "description": "Inspect a webpage's visible design system and export colors, typography, and reusable design tokens.",
   "version": "0.1.0",
   "minimum_chrome_version": "116",
   "icons": {
@@ -16,7 +16,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Analyze page colors",
+    "default_title": "Analyze page design",
     "default_popup": "sidepanel.html",
     "default_icon": {
       "16": "icons/icon16.png",

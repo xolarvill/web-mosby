@@ -1,4 +1,4 @@
-(function collectVisibleColorSamples() {
+(function collectVisibleDesignSamples() {
   try {
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1;
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
