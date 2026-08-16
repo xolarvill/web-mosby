@@ -1,0 +1,59 @@
+name: Package Web Mosby release
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run tests
+        run: npm test
+
+      - name: Read package version
+        id: package
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Package extension zip
+        run: |
+          mkdir -p dist
+          zip -r "dist/web-mosby-v${{ steps.package.outputs.version }}.zip" \
+            manifest.json \
+            content-script.js \
+            service-worker.js \
+            sidepanel.html \
+            sidepanel.css \
+            sidepanel.js \
+            lib \
+            icons \
+            -x "*.DS_Store"
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-mosby-v${{ steps.package.outputs.version }}
+          path: dist/web-mosby-v${{ steps.package.outputs.version }}.zip
+
+      - name: Update rolling GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: dist/web-mosby-v${{ steps.package.outputs.version }}.zip
+          tag: latest
+          name: Latest Web Mosby Build
+          body: "Automated zip package for commit ${{ github.sha }}."
+          allowUpdates: true
+          removeArtifacts: true
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
