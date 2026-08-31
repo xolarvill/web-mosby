@@ -30,6 +30,9 @@
         stack: style.fontFamily,
         size: Number.parseFloat(style.fontSize || "0") || 0,
         fontWeight: style.fontWeight,
+        lineHeight: style.lineHeight,
+        letterSpacing: style.letterSpacing,
+        fontStyle: style.fontStyle,
         weight: Number(weight.toFixed(2))
       });
     };

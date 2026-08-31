@@ -226,14 +226,28 @@ function renderTypography(typography) {
   }
 
   for (const font of fonts.slice(0, 8)) {
+    const styles = font.styles || [];
     const item = document.createElement("article");
     item.className = "font-item";
     item.innerHTML = `
       <div class="font-name">${escapeHtml(font.family)}</div>
       <div class="font-detail">${Math.round(font.usage * 100)}% · ${escapeHtml(font.averageSize)}px · ${escapeHtml(font.averageWeight)}</div>
+      <div class="font-styles">${styles.map(renderFontStyle).join("")}</div>
     `;
     fontList.appendChild(item);
   }
+}
+
+function renderFontStyle(style) {
+  const details = [
+    `字重 ${style.fontWeight}`,
+    `字号 ${style.fontSize}`,
+    `行高 ${style.lineHeight}`,
+    `字距 ${style.letterSpacing}`,
+    style.fontStyle !== "normal" ? style.fontStyle : null
+  ].filter(Boolean).join(" · ");
+
+  return `<div class="font-style">${escapeHtml(details)} <span>${Math.round(style.usage * 100)}%</span></div>`;
 }
 
 function renderWarnings(warnings) {

@@ -352,7 +352,7 @@ h2 {
 
 .font-item {
   min-width: 0;
-  min-height: 44px;
+  min-height: 64px;
   padding: 6px 8px;
   display: grid;
   gap: 1px;
@@ -375,6 +375,26 @@ h2 {
   color: var(--text-tertiary);
   font-size: 12px;
   line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.font-styles {
+  display: grid;
+  gap: 2px;
+}
+
+.font-style {
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+.font-style span {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
